@@ -104,16 +104,10 @@ fi
 # 5. 设置 ACLOCAL_PATH 包含所有可能的宏目录
 export ACLOCAL_PATH="/usr/share/aclocal:/usr/local/share/aclocal:$(pwd)/m4"
 
-# 6. 确保 gettext 相关文件存在
-if [ -f /usr/share/gettext/po/Makefile.in.in ]; then
-    mkdir -p po
-    cp -n /usr/share/gettext/po/Makefile.in.in po/ 2>/dev/null || true
-fi
-
 # Build process
 echo "Starting static build process..."
-echo "Using autoconf: $(which autoconf) - $(autoconf --version | head -1)"
-autoreconf -i
+echo "Using autoconf: $(command -v autoconf) - $(autoconf --version | head -1)"
+autoreconf -fiv
 ./configure CPPFLAGS="-DHAVE_ASN1_STRING_GET0_DATA"
 make
 
