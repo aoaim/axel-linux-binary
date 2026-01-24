@@ -38,21 +38,24 @@ dnf -y install \
     m4 \
     xz
 
+# Clean dnf cache first
+dnf clean all
+
 # Build and install newer autoconf (2.72+ required by axel)
 echo "=== Building autoconf 2.72 ==="
 echo "Current autoconf version: $(autoconf --version | head -1)"
-curl -fsSL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.xz -o /tmp/autoconf-2.72.tar.xz
-tar -xf /tmp/autoconf-2.72.tar.xz -C /tmp
-cd /tmp/autoconf-2.72
+cd /tmp
+curl -fsSL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.xz -o autoconf-2.72.tar.xz
+tar -xf autoconf-2.72.tar.xz
+cd autoconf-2.72
 ./configure --prefix=/usr
-make
+make -j$(nproc)
 make install
 hash -r
-echo "New autoconf version: $(autoconf --version | head -1)"
 cd /
 rm -rf /tmp/autoconf-2.72 /tmp/autoconf-2.72.tar.xz
-
-dnf clean all
+echo "New autoconf version: $(autoconf --version | head -1)"
+autoconf --version
 
 if [ -z "$AXEL_TAG" ]; then
     AXEL_TAG=$(git ls-remote --tags --sort="v:refname" https://github.com/axel-download-accelerator/axel.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
