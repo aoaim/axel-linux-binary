@@ -1,0 +1,46 @@
+name: Build and Publish Axel
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Make script executable
+        run: chmod +x builder.sh
+
+      - name: Build in Docker
+        run: |
+          mkdir -p output
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v ${{ github.workspace }}:/workspace \
+            -v ${{ github.workspace }}/output:/output \
+            rockylinux:8 \
+            /bin/bash /workspace/builder.sh "${{ github.ref_name }}" "${{ matrix.arch }}"
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: output/axel-${{ matrix.arch }}
