@@ -19,6 +19,9 @@ jobs:
       should_run: ${{ steps.decide.outputs.should_run }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - id: tag
         name: Set release tag
         run: echo "release_tag=$(date -u +%Y%m%d)" >> $GITHUB_OUTPUT

@@ -32,7 +32,7 @@ Release 的版本号将自动使用触发时刻的 UTC 日期（例如 `20260124
 - `wget2-amd64`
 - `wget2-arm64`
 
-这些二进制文件**仅适用于 Linux 系统**（amd64 和 arm64 架构）。其中 Wget2 会以静态方式构建，以便携带更多依赖，适合在老系统或精简系统中运行。
+这些二进制文件**仅适用于 Linux 系统**（amd64 和 arm64 架构）。Axel 与 Wget2 都会尽量以静态方式构建，以便携带更多依赖，适合在老系统或精简系统中运行。
 
 > 兼容性提示：构建环境使用 **Rocky Linux 8**，最低支持 **GLIBC 2.28**。这意味着它可以在 Rocky 8/9、AlmaLinux 8/9、CentOS 8/Stream、Debian 11+、Ubuntu 20.04+ 等较新的 Linux 发行版上运行。
 
