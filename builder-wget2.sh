@@ -25,11 +25,11 @@ dnf -y install \
     gcc \
     gcc-c++ \
     gettext \
+    gettext-devel \
     git \
     glibc-static \
     gmp-devel \
     gnutls-devel \
-    libbrotli-devel \
     libidn2-devel \
     libnghttp2-devel \
     libpsl-devel \
@@ -48,6 +48,8 @@ dnf -y install \
     xz-devel \
     zlib-devel
 dnf clean all
+
+dnf -y install brotli-devel || dnf -y install libbrotli-devel
 
 if [ -z "$WGET2_REF" ]; then
     WGET2_REF=$(git ls-remote --tags --sort="v:refname" https://gitlab.com/gnuwget/wget2.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
