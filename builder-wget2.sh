@@ -10,10 +10,6 @@ if [ -z "$ARCH" ]; then
     exit 1
 fi
 
-if [ -z "$WGET2_REF" ]; then
-    WGET2_REF=$(git ls-remote --tags --sort="v:refname" https://gitlab.com/gnuwget/wget2.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
-fi
-
 echo "Building Wget2 ref: $WGET2_REF for architecture: $ARCH"
 
 # Install dependencies
@@ -30,6 +26,7 @@ dnf -y install \
     gcc-c++ \
     gettext \
     git \
+    glibc-static \
     gmp-devel \
     gnutls-devel \
     libbrotli-devel \
@@ -37,6 +34,7 @@ dnf -y install \
     libnghttp2-devel \
     libpsl-devel \
     libtasn1-devel \
+    libstdc++-static \
     libtool \
     libunistring-devel \
     libzstd-devel \
@@ -50,6 +48,10 @@ dnf -y install \
     xz-devel \
     zlib-devel
 dnf clean all
+
+if [ -z "$WGET2_REF" ]; then
+    WGET2_REF=$(git ls-remote --tags --sort="v:refname" https://gitlab.com/gnuwget/wget2.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
+fi
 
 # Clone the repository
 git clone --depth 1 --branch "$WGET2_REF" https://gitlab.com/gnuwget/wget2.git /tmp/wget2-src

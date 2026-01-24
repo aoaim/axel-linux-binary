@@ -10,10 +10,6 @@ if [ -z "$ARCH" ]; then
     exit 1
 fi
 
-if [ -z "$AXEL_TAG" ]; then
-    AXEL_TAG=$(git ls-remote --tags --sort="v:refname" https://github.com/axel-download-accelerator/axel.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
-fi
-
 echo "Building Axel version: $AXEL_TAG for architecture: $ARCH"
 
 # Install dependencies
@@ -32,6 +28,10 @@ dnf -y install \
     git \
     ca-certificates
 dnf clean all
+
+if [ -z "$AXEL_TAG" ]; then
+    AXEL_TAG=$(git ls-remote --tags --sort="v:refname" https://github.com/axel-download-accelerator/axel.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
+fi
 
 # Clone the repository
 git clone --branch "$AXEL_TAG" --depth 1 https://github.com/axel-download-accelerator/axel.git /tmp/axel-src

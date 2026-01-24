@@ -3,15 +3,22 @@
 这一仓库旨在利用 GitHub Actions 手动触发构建适用于 `amd64` 和 `arm64` 架构的 Axel 与 Wget2 二进制文件，
 方便在没有 root 权限、内核较旧的学校服务器上直接使用。
 
-当你在本仓库手动触发 GitHub Actions 时，将会执行：
+当你在本仓库**手动触发**或**等待定时任务**运行时，将会执行：
 1. 自动获取 Axel 与 Wget2 的最新 tag 源码。
 2. 在 Docker 容器（Rocky Linux 8 环境）中编译。
 3. 自动创建一个以 UTC 日期为版本号的 Release（例如 `20260124`）。
 4. 将编译好的二进制文件上传到该 Release 中。
 
+此外，工作流每周会自动检查一次上游 Axel/Wget2 是否有新 tag；只要其中一个有更新，就会自动触发构建并发布新的 Release。
+
 ## 使用方法
 
-只需要点一次即可完成构建和发布：
+两种方式都支持：
+
+- 手动：进入 Actions 点一次 "Run workflow"。
+- 自动：每周一 03:00 UTC 自动检查更新并构建发布。
+
+手动触发只需要点一次即可完成构建和发布：
 
 1. **Fork 或 Clone** 本仓库到你的 GitHub 账号。
 2. 前往 GitHub 的 **Actions** 页面，选择 "Build and Publish Binaries"。
