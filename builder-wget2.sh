@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 # Arguments
 WGET2_REF=$1
@@ -57,20 +57,22 @@ dnf -y install \
     xz \
     xz-devel \
     zlib-devel
-dnf clean all
 
 # Build and install newer autoconf (2.72+ may be required)
-echo "Building autoconf 2.72..."
+echo "=== Building autoconf 2.72 ==="
+echo "Current autoconf version: $(autoconf --version | head -1)"
 curl -fsSL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.xz -o /tmp/autoconf-2.72.tar.xz
 tar -xf /tmp/autoconf-2.72.tar.xz -C /tmp
 cd /tmp/autoconf-2.72
-./configure --prefix=/usr/local
+./configure --prefix=/usr
 make
 make install
-export PATH="/usr/local/bin:$PATH"
+hash -r
+echo "New autoconf version: $(autoconf --version | head -1)"
 cd /
 rm -rf /tmp/autoconf-2.72 /tmp/autoconf-2.72.tar.xz
-echo "Autoconf version: $(autoconf --version | head -1)"
+
+dnf clean all
 
 if [ ! -x /usr/bin/python ]; then
     ln -s /usr/bin/python3 /usr/bin/python
@@ -88,6 +90,7 @@ cd /tmp/wget2-src
 
 # Build process
 echo "Starting static build process..."
+echo "Using autoconf: $(which autoconf) - $(autoconf --version | head -1)"
 ./bootstrap
 ./configure \
     --disable-shared \

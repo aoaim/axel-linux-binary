@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 # Arguments
 AXEL_TAG=$1
@@ -37,20 +37,22 @@ dnf -y install \
     perl \
     m4 \
     xz
-dnf clean all
 
 # Build and install newer autoconf (2.72+ required by axel)
-echo "Building autoconf 2.72..."
+echo "=== Building autoconf 2.72 ==="
+echo "Current autoconf version: $(autoconf --version | head -1)"
 curl -fsSL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.xz -o /tmp/autoconf-2.72.tar.xz
 tar -xf /tmp/autoconf-2.72.tar.xz -C /tmp
 cd /tmp/autoconf-2.72
-./configure --prefix=/usr/local
+./configure --prefix=/usr
 make
 make install
-export PATH="/usr/local/bin:$PATH"
+hash -r
+echo "New autoconf version: $(autoconf --version | head -1)"
 cd /
 rm -rf /tmp/autoconf-2.72 /tmp/autoconf-2.72.tar.xz
-echo "Autoconf version: $(autoconf --version | head -1)"
+
+dnf clean all
 
 if [ -z "$AXEL_TAG" ]; then
     AXEL_TAG=$(git ls-remote --tags --sort="v:refname" https://github.com/axel-download-accelerator/axel.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
@@ -62,6 +64,7 @@ cd /tmp/axel-src
 
 # Build process
 echo "Starting static build process..."
+echo "Using autoconf: $(which autoconf) - $(autoconf --version | head -1)"
 autoreconf -i
 ./configure CPPFLAGS="-DHAVE_ASN1_STRING_GET0_DATA"
 make
