@@ -65,6 +65,51 @@ fi
 git clone --branch "$AXEL_TAG" --depth 1 https://github.com/axel-download-accelerator/axel.git /tmp/axel-src
 cd /tmp/axel-src
 
+# ============================================
+# Autotools 构建问题预防措施
+# ============================================
+
+# 1. 清理可能存在的旧生成文件（防止版本不匹配）
+echo "=== Cleaning old generated files ==="
+rm -f aclocal.m4 configure config.h.in
+rm -rf autom4te.cache
+find . -name 'Makefile.in' -delete 2>/dev/null || true
+
+# 2. 确保 m4 目录存在
+mkdir -p m4
+
+# 3. 复制系统 m4 宏到本地（防止宏找不到）
+echo "=== Copying system m4 macros ==="
+for macro_dir in /usr/share/aclocal /usr/local/share/aclocal; do
+    if [ -d "$macro_dir" ]; then
+        for macro in pkg ax_pthread ax_check_openssl ax_require_defined; do
+            if ls "$macro_dir"/${macro}*.m4 >/dev/null 2>&1; then
+                cp -n "$macro_dir"/${macro}*.m4 m4/ 2>/dev/null || true
+            fi
+        done
+    fi
+done
+
+# 4. 修复 AC_CONFIG_MACRO_DIR 重复问题（如果存在）
+echo "=== Fixing AC_CONFIG_MACRO_DIR conflicts ==="
+if [ -f configure.ac ]; then
+    # 统一使用 AC_CONFIG_MACRO_DIRS
+    sed -i 's/^AC_CONFIG_MACRO_DIR(\[m4\])/AC_CONFIG_MACRO_DIRS([m4])/' configure.ac 2>/dev/null || true
+    # 删除重复的宏定义
+    if grep -c "AC_CONFIG_MACRO_DIR" configure.ac | grep -q "^[2-9]"; then
+        awk '!seen[$0]++ || !/AC_CONFIG_MACRO_DIR/' configure.ac > configure.ac.tmp && mv configure.ac.tmp configure.ac
+    fi
+fi
+
+# 5. 设置 ACLOCAL_PATH 包含所有可能的宏目录
+export ACLOCAL_PATH="/usr/share/aclocal:/usr/local/share/aclocal:$(pwd)/m4"
+
+# 6. 确保 gettext 相关文件存在
+if [ -f /usr/share/gettext/po/Makefile.in.in ]; then
+    mkdir -p po
+    cp -n /usr/share/gettext/po/Makefile.in.in po/ 2>/dev/null || true
+fi
+
 # Build process
 echo "Starting static build process..."
 echo "Using autoconf: $(which autoconf) - $(autoconf --version | head -1)"
