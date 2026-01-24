@@ -20,7 +20,9 @@ dnf -y install \
     autoconf-archive \
     automake \
     gettext \
+    gettext-common-devel \
     gettext-devel \
+    findutils \
     gcc \
     make \
     openssl-devel \

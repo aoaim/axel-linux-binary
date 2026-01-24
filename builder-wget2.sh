@@ -22,9 +22,11 @@ dnf -y install \
     bzip2-devel \
     ca-certificates \
     flex \
+    findutils \
     gcc \
     gcc-c++ \
     gettext \
+    gettext-common-devel \
     gettext-devel \
     git \
     glibc-static \
@@ -39,15 +41,23 @@ dnf -y install \
     libunistring-devel \
     libzstd-devel \
     make \
+    makeinfo \
     nettle-devel \
     pcre2-devel \
     pkgconf-pkg-config \
     python3 \
+    rsync \
     tar \
+    texinfo \
+    lzip \
     xz \
     xz-devel \
     zlib-devel
 dnf clean all
+
+if [ ! -x /usr/bin/python ]; then
+    ln -s /usr/bin/python3 /usr/bin/python
+fi
 
 dnf -y install brotli-devel || dnf -y install libbrotli-devel
 

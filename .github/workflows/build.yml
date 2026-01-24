@@ -101,7 +101,7 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Make scripts executable
-        run: chmod +x builder.sh builder-wget2.sh
+        run: chmod +x builder-axel builder-wget2.sh
 
       - name: Build in Docker
         run: |
@@ -110,7 +110,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -v ${{ github.workspace }}/output:/output \
             rockylinux:8 \
-            /bin/bash -c "if [ '${{ matrix.package }}' = 'axel' ]; then /workspace/builder.sh '$AXEL_TAG' '${{ matrix.arch }}'; else /workspace/builder-wget2.sh '$WGET2_TAG' '${{ matrix.arch }}'; fi"
+            /bin/bash -c "if [ '${{ matrix.package }}' = 'axel' ]; then /workspace/builder-axel '$AXEL_TAG' '${{ matrix.arch }}'; else /workspace/builder-wget2.sh '$WGET2_TAG' '${{ matrix.arch }}'; fi"
 
       - name: Upload Release Asset
         env:
