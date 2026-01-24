@@ -1,23 +1,30 @@
-name: Build and Publish Axel
+name: Build and Publish Binaries
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    name: Build ${{ matrix.package }} ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
+          - package: axel
+            arch: amd64
             platform: linux/amd64
-          - arch: arm64
+          - package: axel
+            arch: arm64
+            platform: linux/arm64
+          - package: wget2
+            arch: amd64
+            platform: linux/amd64
+          - package: wget2
+            arch: arm64
             platform: linux/arm64
 
     steps:
@@ -27,8 +34,11 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Make script executable
-        run: chmod +x builder.sh
+      - name: Set release tag
+        run: echo "RELEASE_TAG=$(date -u +%Y%m%d)" >> $GITHUB_ENV
+
+      - name: Make scripts executable
+        run: chmod +x builder.sh builder-wget2.sh
 
       - name: Build in Docker
         run: |
@@ -37,10 +47,11 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -v ${{ github.workspace }}/output:/output \
             rockylinux:8 \
-            /bin/bash /workspace/builder.sh "${{ github.ref_name }}" "${{ matrix.arch }}"
+            /bin/bash -c "if [ '${{ matrix.package }}' = 'axel' ]; then /workspace/builder.sh '' '${{ matrix.arch }}'; else /workspace/builder-wget2.sh '' '${{ matrix.arch }}'; fi"
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: output/axel-${{ matrix.arch }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          files: output/${{ matrix.package }}-${{ matrix.arch }}

@@ -5,9 +5,13 @@ set -e
 AXEL_TAG=$1
 ARCH=$2
 
-if [ -z "$AXEL_TAG" ] || [ -z "$ARCH" ]; then
+if [ -z "$ARCH" ]; then
     echo "Usage: $0 <AXEL_TAG> <ARCH>"
     exit 1
+fi
+
+if [ -z "$AXEL_TAG" ]; then
+    AXEL_TAG=$(git ls-remote --tags --sort="v:refname" https://github.com/axel-download-accelerator/axel.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
 fi
 
 echo "Building Axel version: $AXEL_TAG for architecture: $ARCH"
