@@ -14,6 +14,7 @@ echo "Building Axel version: $AXEL_TAG for architecture: $ARCH"
 
 # Install dependencies
 dnf -y install epel-release
+/usr/bin/crb enable
 dnf -y install \
     autoconf \
     autoconf-archive \
