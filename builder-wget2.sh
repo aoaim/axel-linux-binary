@@ -21,6 +21,7 @@ dnf -y install \
     bzip2 \
     bzip2-devel \
     ca-certificates \
+    diffutils \
     flex \
     findutils \
     gcc \
@@ -41,7 +42,6 @@ dnf -y install \
     libunistring-devel \
     libzstd-devel \
     make \
-    makeinfo \
     nettle-devel \
     pcre2-devel \
     pkgconf-pkg-config \

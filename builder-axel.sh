@@ -19,6 +19,7 @@ dnf -y install \
     autoconf \
     autoconf-archive \
     automake \
+    diffutils \
     gettext \
     gettext-common-devel \
     gettext-devel \
@@ -27,6 +28,8 @@ dnf -y install \
     make \
     openssl-devel \
     pkgconf-pkg-config \
+    tar \
+    texinfo \
     txt2man \
     git \
     ca-certificates
