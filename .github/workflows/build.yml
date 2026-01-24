@@ -29,8 +29,8 @@ jobs:
       - id: tags
         name: Resolve latest upstream tags
         run: |
-          axel_tag=$(git ls-remote --tags --sort="v:refname" https://github.com/axel-download-accelerator/axel.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
-          wget2_tag=$(git ls-remote --tags --sort="v:refname" https://gitlab.com/gnuwget/wget2.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
+          axel_tag=$(git ls-remote --tags --sort="v:refname" https://github.com/axel-download-accelerator/axel.git 2>/dev/null | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
+          wget2_tag=$(git ls-remote --tags --sort="v:refname" https://gitlab.com/gnuwget/wget2.git 2>/dev/null | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
           echo "axel_tag=$axel_tag" >> $GITHUB_OUTPUT
           echo "wget2_tag=$wget2_tag" >> $GITHUB_OUTPUT
 
@@ -63,7 +63,7 @@ jobs:
           WGET2_TAG: ${{ steps.tags.outputs.wget2_tag }}
         if: steps.decide.outputs.should_run == 'true'
         run: |
-          notes=$(printf "axel_tag=%s\nwget2_tag=%s\n" "$AXEL_TAG" "$WGET2_TAG")
+          notes=$(printf "## Build Information\n\n- **Axel Version**: %s\n- **Wget2 Version**: %s\n" "$AXEL_TAG" "$WGET2_TAG")
           gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
           gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "$notes" --target "${{ github.sha }}"
 
@@ -106,13 +106,17 @@ jobs:
       - name: Build in Docker
         run: |
           mkdir -p output
+          echo "Building ${{ matrix.package }} for ${{ matrix.arch }}..."
           docker run --rm --platform ${{ matrix.platform }} \
             -v ${{ github.workspace }}:/workspace \
             -v ${{ github.workspace }}/output:/output \
             rockylinux:8 \
-            /bin/bash -c "if [ '${{ matrix.package }}' = 'axel' ]; then /workspace/builder-axel.sh '$AXEL_TAG' '${{ matrix.arch }}'; else /workspace/builder-wget2.sh '$WGET2_TAG' '${{ matrix.arch }}'; fi"
+            /bin/bash -c "if [ '${{ matrix.package }}' = 'axel' ]; then /workspace/builder-axel.sh '$AXEL_TAG' '${{ matrix.arch }}'; else /workspace/builder-wget2.sh '$WGET2_TAG' '${{ matrix.arch }}'; fi" 2>&1 | grep -E '(Building|Completed|Error|Warning|Successfully)' || true
+          echo "Build completed"
 
       - name: Upload Release Asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$RELEASE_TAG" "output/${{ matrix.package }}-${{ matrix.arch }}" --clobber
+        run: |
+          echo "Uploading ${{ matrix.package }}-${{ matrix.arch }}..."
+          gh release upload "$RELEASE_TAG" "output/${{ matrix.package }}-${{ matrix.arch }}" --clobber 2>&1 | tail -n 3
