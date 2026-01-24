@@ -17,10 +17,12 @@ dnf -y install epel-release
 /usr/bin/crb enable
 dnf -y install \
     autoconf \
+    autoconf-archive \
     automake \
     bzip2 \
     bzip2-devel \
     ca-certificates \
+    curl \
     diffutils \
     flex \
     findutils \
@@ -41,9 +43,11 @@ dnf -y install \
     libtool \
     libunistring-devel \
     libzstd-devel \
+    m4 \
     make \
     nettle-devel \
     pcre2-devel \
+    perl \
     pkgconf-pkg-config \
     python3 \
     rsync \
@@ -54,6 +58,19 @@ dnf -y install \
     xz-devel \
     zlib-devel
 dnf clean all
+
+# Build and install newer autoconf (2.72+ may be required)
+echo "Building autoconf 2.72..."
+curl -fsSL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.xz -o /tmp/autoconf-2.72.tar.xz
+tar -xf /tmp/autoconf-2.72.tar.xz -C /tmp
+cd /tmp/autoconf-2.72
+./configure --prefix=/usr/local
+make
+make install
+export PATH="/usr/local/bin:$PATH"
+cd /
+rm -rf /tmp/autoconf-2.72 /tmp/autoconf-2.72.tar.xz
+echo "Autoconf version: $(autoconf --version | head -1)"
 
 if [ ! -x /usr/bin/python ]; then
     ln -s /usr/bin/python3 /usr/bin/python
