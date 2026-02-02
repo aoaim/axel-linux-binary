@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -ex
 
 # Arguments
@@ -12,158 +12,91 @@ fi
 
 echo "Building Wget2 ref: $WGET2_REF for architecture: $ARCH"
 
-# Install dependencies
-dnf -y install epel-release
-/usr/bin/crb enable
-dnf -y install \
+# Install dependencies (Alpine uses apk)
+apk update
+apk add --no-cache \
     autoconf \
     autoconf-archive \
     automake \
-    bzip2 \
-    bzip2-devel \
-    ca-certificates \
+    brotli-dev \
+    brotli-static \
+    build-base \
+    bzip2-dev \
+    bzip2-static \
     curl \
-    diffutils \
     flex \
-    findutils \
-    gcc \
-    gcc-c++ \
-    gettext \
-    gettext-common-devel \
-    gettext-devel \
+    gettext-dev \
     git \
-    glibc-static \
-    gmp-devel \
-    gnutls-devel \
-    libidn2-devel \
-    libnghttp2-devel \
-    libpsl-devel \
-    libtasn1-devel \
-    libstdc++-static \
+    gmp-dev \
+    gnutls-dev \
+    libidn2-dev \
+    libidn2-static \
+    libpsl-dev \
+    libpsl-static \
+    libtasn1-dev \
     libtool \
-    libunistring-devel \
-    libzstd-devel \
-    m4 \
-    make \
-    nettle-devel \
-    pcre2-devel \
-    perl \
-    pkgconf-pkg-config \
-    python3 \
-    rsync \
-    tar \
-    texinfo \
+    libunistring-dev \
+    libunistring-static \
+    linux-headers \
     lzip \
+    m4 \
+    nettle-dev \
+    nettle-static \
+    nghttp2-dev \
+    nghttp2-static \
+    pcre2-dev \
+    pkgconf \
+    python3 \
+    texinfo \
     xz \
-    xz-devel \
-    zlib-devel
+    xz-dev \
+    zlib-dev \
+    zlib-static \
+    zstd-dev \
+    zstd-static
 
-# Build and install newer autoconf (2.72+ may be required)
-echo "=== Building autoconf 2.72 ==="
-echo "Current autoconf version: $(autoconf --version | head -1)"
-curl -fsSL https://ftp.gnu.org/gnu/autoconf/autoconf-2.72.tar.xz -o /tmp/autoconf-2.72.tar.xz
-tar -xf /tmp/autoconf-2.72.tar.xz -C /tmp
-cd /tmp/autoconf-2.72
-./configure --prefix=/usr
-make
-make install
-hash -r
-echo "New autoconf version: $(autoconf --version | head -1)"
-cd /
-rm -rf /tmp/autoconf-2.72 /tmp/autoconf-2.72.tar.xz
-
-dnf clean all
-
+# Ensure python symlink exists
 if [ ! -x /usr/bin/python ]; then
     ln -s /usr/bin/python3 /usr/bin/python
 fi
 
-dnf -y install brotli-devel || dnf -y install libbrotli-devel
-
-# Install gpgme-devel for AM_PATH_GPGME macro
-dnf -y install gpgme-devel || true
-
+# Get latest tag if not specified
 if [ -z "$WGET2_REF" ]; then
     WGET2_REF=$(git ls-remote --tags --sort="v:refname" https://gitlab.com/gnuwget/wget2.git | tail -n 1 | sed 's@.*/@@;s@\^{}@@')
 fi
+
+echo "Using Wget2 tag: $WGET2_REF"
 
 # Clone the repository
 git clone --depth 1 --branch "$WGET2_REF" https://gitlab.com/gnuwget/wget2.git /tmp/wget2-src
 cd /tmp/wget2-src
 
-# ============================================
-# Autotools 构建问题预防措施
-# ============================================
-
-# 1. 清理可能存在的旧生成文件（防止版本不匹配）
+# Clean old generated files
 echo "=== Cleaning old generated files ==="
 rm -f aclocal.m4 configure config.h.in
-rm -rf autom4te.cache m4/gnulib-cache.m4 m4/gnulib-comp.m4
+rm -rf autom4te.cache
 find . -name 'Makefile.in' -delete 2>/dev/null || true
 
-# 2. 确保 m4 目录存在
+# Ensure m4 directory exists
 mkdir -p m4
 
-# 3. 复制系统 m4 宏到本地（防止宏找不到）
-echo "=== Copying system m4 macros ==="
-for macro_dir in /usr/share/aclocal /usr/local/share/aclocal; do
-    if [ -d "$macro_dir" ]; then
-        # 复制可能需要的宏文件
-        for macro in gpgme libtool pkg ax_pthread; do
-            if ls "$macro_dir"/${macro}*.m4 >/dev/null 2>&1; then
-                cp -n "$macro_dir"/${macro}*.m4 m4/ 2>/dev/null || true
-            fi
-        done
-    fi
-done
-
-# 4. 修复 AC_CONFIG_MACRO_DIR 重复问题
-# 新版 gnulib 使用 AC_CONFIG_MACRO_DIRS（复数），与旧的 AC_CONFIG_MACRO_DIR 冲突
-echo "=== Fixing AC_CONFIG_MACRO_DIR conflicts ==="
-if [ -f configure.ac ]; then
-    # 统一使用 AC_CONFIG_MACRO_DIRS
-    sed -i 's/^AC_CONFIG_MACRO_DIR(\[m4\])/AC_CONFIG_MACRO_DIRS([m4])/' configure.ac
-    # 删除重复的宏定义
-    awk '!seen[$0]++ || !/AC_CONFIG_MACRO_DIR/' configure.ac > configure.ac.tmp && mv configure.ac.tmp configure.ac
-fi
-
-# 5. 设置 ACLOCAL_PATH 包含所有可能的宏目录
-export ACLOCAL_PATH="/usr/share/aclocal:/usr/local/share/aclocal:$(pwd)/m4"
-
-# 6. 处理可能缺失的可选功能宏（如 GPGME）
-echo "=== Handling optional feature macros ==="
-if grep -q "AM_PATH_GPGME" configure.ac && ! [ -f m4/gpgme.m4 ]; then
-    # 如果找不到 gpgme.m4，尝试禁用 GPGME 或创建空桩
-    if [ -f /usr/share/aclocal/gpgme.m4 ]; then
-        cp /usr/share/aclocal/gpgme.m4 m4/
-    else
-        echo "Warning: gpgme.m4 not found, GPGME support may be disabled"
-        # 创建一个桩宏，让 configure 可以继续但禁用 GPGME
-        cat > m4/gpgme.m4 << 'GPGME_STUB'
-dnl Stub for missing gpgme - will disable GPGME support
-AC_DEFUN([AM_PATH_GPGME], [
-  AC_MSG_NOTICE([GPGME not available - gpgme.m4 stub])
-  $3
-])
-AC_DEFUN([AM_PATH_GPGME_PTHREAD], [
-  AC_MSG_NOTICE([GPGME not available - gpgme.m4 stub])
-  $3
-])
-GPGME_STUB
-    fi
-fi
-
-# Build process
-echo "Starting static build process..."
-echo "Using autoconf: $(which autoconf) - $(autoconf --version | head -1)"
-./bootstrap
+# Build process with static linking
+echo "=== Starting static build process ==="
+./bootstrap --skip-po
 ./configure \
     --disable-shared \
     --enable-static \
-    LDFLAGS="-static"
-make
+    --without-gpgme \
+    CFLAGS="-static" \
+    LDFLAGS="-static -all-static"
+make -j$(nproc)
 
-# prepare output
+# Verify static linking
+echo "=== Verifying static linking ==="
+file src/wget2
+ldd src/wget2 2>&1 || echo "Binary is statically linked (expected)"
+
+# Prepare output
 mkdir -p /output
 cp src/wget2 /output/wget2-"$ARCH"
 strip /output/wget2-"$ARCH"
