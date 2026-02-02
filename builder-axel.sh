@@ -20,7 +20,9 @@ apk add --no-cache \
     automake \
     build-base \
     curl \
+    gettext \
     gettext-dev \
+    gettext-static \
     git \
     libtool \
     linux-headers \
@@ -28,7 +30,8 @@ apk add --no-cache \
     openssl-dev \
     openssl-libs-static \
     pkgconf \
-    texinfo
+    texinfo \
+    txt2man
 
 # Get latest tag if not specified
 if [ -z "$AXEL_TAG" ]; then

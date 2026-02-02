@@ -13,6 +13,7 @@ fi
 echo "Building Wget2 ref: $WGET2_REF for architecture: $ARCH"
 
 # Install dependencies (Alpine uses apk)
+# Note: All static libs are needed for fully static linking
 apk update
 apk add --no-cache \
     autoconf \
@@ -25,15 +26,20 @@ apk add --no-cache \
     bzip2-static \
     curl \
     flex \
+    gettext \
     gettext-dev \
+    gettext-static \
     git \
     gmp-dev \
+    gmp-static \
     gnutls-dev \
+    gnutls-static \
     libidn2-dev \
     libidn2-static \
     libpsl-dev \
     libpsl-static \
     libtasn1-dev \
+    libtasn1-static \
     libtool \
     libunistring-dev \
     libunistring-static \
@@ -44,12 +50,16 @@ apk add --no-cache \
     nettle-static \
     nghttp2-dev \
     nghttp2-static \
+    p11-kit-dev \
+    p11-kit-static \
     pcre2-dev \
+    pcre2-static \
     pkgconf \
     python3 \
     texinfo \
     xz \
     xz-dev \
+    xz-static \
     zlib-dev \
     zlib-static \
     zstd-dev \
@@ -87,6 +97,8 @@ echo "=== Starting static build process ==="
     --disable-shared \
     --enable-static \
     --without-gpgme \
+    --without-libmicrohttpd \
+    --without-plugin-support \
     CFLAGS="-static" \
     LDFLAGS="-static -all-static"
 make -j$(nproc)
