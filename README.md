@@ -51,6 +51,24 @@ $ ldd axel-amd64
 not a dynamic executable
 ```
 
+## wget2 静态版本限制
+
+> [!WARNING]
+> 由于 Alpine Linux 没有提供 `gnutls-static` 静态库包，静态编译的 wget2 **不支持 HTTPS**。
+
+| 功能 | 支持情况 |
+|------|----------|
+| HTTP | ✅ |
+| HTTP/2 多线程 | ✅ |
+| HTTPS | ❌ 不支持 |
+| FTP | ❌ wget2 设计上不支持 |
+| IDN2 国际化域名 | ✅ |
+| Brotli/LZMA/BZ2/Zlib 压缩 | ✅ |
+| PSL 公共后缀列表 | ✅ |
+| PCRE2 正则表达式 | ✅ |
+
+如果需要 HTTPS 或 FTP 支持，请使用传统的 GNU Wget 1.x 或 curl。
+
 ## 构建环境
 
 构建环境基于 `alpine:latest` 镜像，使用 musl libc 进行静态链接。主要依赖包括：

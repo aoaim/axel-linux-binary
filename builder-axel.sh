@@ -53,6 +53,24 @@ find . -name 'Makefile.in' -delete 2>/dev/null || true
 # Ensure m4 directory exists
 mkdir -p m4
 
+# Fix missing gettext m4 macros
+# Alpine's gettext doesn't install all required m4 files, we need to copy them manually
+echo "=== Copying gettext m4 macros ==="
+for macro in /usr/share/aclocal/gettext*.m4 /usr/share/aclocal/intl*.m4 /usr/share/aclocal/nls.m4 /usr/share/aclocal/po.m4; do
+    if [ -f "$macro" ]; then
+        cp -v "$macro" m4/
+    fi
+done
+
+# If AM_GNU_GETTEXT_VERSION is still missing, create a stub
+if ! grep -q "AM_GNU_GETTEXT_VERSION" m4/*.m4 2>/dev/null; then
+    echo "=== Creating gettext version stub ==="
+    cat > m4/gettext-version.m4 << 'EOF'
+dnl Stub for AM_GNU_GETTEXT_VERSION when full gettext is not available
+AC_DEFUN([AM_GNU_GETTEXT_VERSION], [])
+EOF
+fi
+
 # Build process with static linking
 echo "=== Starting static build process ==="
 autoreconf -fiv

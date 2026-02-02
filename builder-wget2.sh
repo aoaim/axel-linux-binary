@@ -13,7 +13,8 @@ fi
 echo "Building Wget2 ref: $WGET2_REF for architecture: $ARCH"
 
 # Install dependencies (Alpine uses apk)
-# Note: All static libs are needed for fully static linking
+# Note: wget2 uses GnuTLS for SSL/TLS, but Alpine has no gnutls-static package
+# So this build will NOT have HTTPS support. For HTTPS, use traditional wget 1.x
 apk update
 apk add --no-cache \
     autoconf \
@@ -31,35 +32,29 @@ apk add --no-cache \
     gettext-static \
     git \
     gmp-dev \
-    gmp-static \
-    gnutls-dev \
-    gnutls-static \
     libidn2-dev \
     libidn2-static \
     libpsl-dev \
     libpsl-static \
-    libtasn1-dev \
-    libtasn1-static \
     libtool \
     libunistring-dev \
     libunistring-static \
     linux-headers \
     lzip \
     m4 \
-    nettle-dev \
-    nettle-static \
     nghttp2-dev \
     nghttp2-static \
-    p11-kit-dev \
-    p11-kit-static \
+    openssl-dev \
+    openssl-libs-static \
     pcre2-dev \
     pcre2-static \
     pkgconf \
     python3 \
+    rsync \
     texinfo \
+    xz-static \
     xz \
     xz-dev \
-    xz-static \
     zlib-dev \
     zlib-static \
     zstd-dev \
@@ -81,27 +76,61 @@ echo "Using Wget2 tag: $WGET2_REF"
 git clone --depth 1 --branch "$WGET2_REF" https://gitlab.com/gnuwget/wget2.git /tmp/wget2-src
 cd /tmp/wget2-src
 
-# Clean old generated files
-echo "=== Cleaning old generated files ==="
-rm -f aclocal.m4 configure config.h.in
-rm -rf autom4te.cache
-find . -name 'Makefile.in' -delete 2>/dev/null || true
+# Fix AC_CONFIG_MACRO_DIR conflict BEFORE bootstrap
+# The configure.ac has multiple AC_CONFIG_MACRO_DIR which conflicts with gnulib
+echo "=== Fixing AC_CONFIG_MACRO_DIR conflict ==="
+if [ -f configure.ac ]; then
+    # Remove duplicate AC_CONFIG_MACRO_DIR, keep only AC_CONFIG_MACRO_DIRS
+    sed -i 's/^AC_CONFIG_MACRO_DIR(\[m4\])$/dnl AC_CONFIG_MACRO_DIR([m4])/' configure.ac
+    # Ensure we use AC_CONFIG_MACRO_DIRS (plural) if not already present
+    if ! grep -q "AC_CONFIG_MACRO_DIRS" configure.ac; then
+        sed -i 's/^dnl AC_CONFIG_MACRO_DIR(\[m4\])$/AC_CONFIG_MACRO_DIRS([m4])/' configure.ac
+    fi
+fi
 
-# Ensure m4 directory exists
-mkdir -p m4
-
-# Build process with static linking
+# Build process
 echo "=== Starting static build process ==="
 ./bootstrap --skip-po
+
+# Check available SSL options
+echo "=== Checking configure options ==="
+./configure --help | grep -i ssl || true
+./configure --help | grep -i openssl || true
+./configure --help | grep -i gnutls || true
+
+# Configure for static build
+# NOTE: SSL/TLS support is disabled because:
+# - wget2 uses GnuTLS for HTTPS (not OpenSSL)
+# - Alpine Linux has no gnutls-static package
+# - --with-openssl only provides hash functions, not HTTPS
+# DO NOT use -static in CFLAGS during configure (breaks compiler test)
 ./configure \
     --disable-shared \
     --enable-static \
+    --with-openssl=yes \
+    --without-gnutls \
     --without-gpgme \
     --without-libmicrohttpd \
     --without-plugin-support \
-    CFLAGS="-static" \
-    LDFLAGS="-static -all-static"
-make -j$(nproc)
+    LDFLAGS="-static"
+
+# Fix musl libc compatibility issue
+# In musl, pthread_t is 'struct __pthread *', but wget_thread_id_t is 'unsigned long'
+# This causes a type mismatch error in thread.c
+echo "=== Applying musl libc pthread_t compatibility patch ==="
+if [ -f libwget/thread.c ]; then
+    sed -i 's/return gl_thread_self();/return (wget_thread_id_t)(uintptr_t)gl_thread_self();/' libwget/thread.c
+    echo "Patched libwget/thread.c for musl compatibility"
+fi
+
+# Build with static linking
+# Need to add all dependencies explicitly for static linking:
+# - Compression: zlib, lzma, brotli (dec+common), bzip2
+# - IDN: libidn2, libunistring
+# - HTTP/2: nghttp2
+# - PSL: libpsl
+make -j$(nproc) LDFLAGS="-static -all-static" \
+    LIBS="-lidn2 -lunistring -lpsl -lnghttp2 -lbrotlidec -lbrotlicommon -llzma -lz -lbz2 -lpcre2-8"
 
 # Verify static linking
 echo "=== Verifying static linking ==="
