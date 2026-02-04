@@ -63,16 +63,20 @@ jobs:
           WGET2_TAG: ${{ steps.tags.outputs.wget2_tag }}
         if: steps.decide.outputs.should_run == 'true'
         run: |
+          # Format versions: v2.17.14 -> 2.17.14, wget2-1.99.1 -> 1.99.1
+          axel_display=$(echo "$AXEL_TAG" | sed 's/^v//')
+          wget2_display=$(echo "$WGET2_TAG" | sed 's/^wget2-//')
           notes=$(cat <<EOF
           ## Build Information
 
-          - **Axel Version**: $AXEL_TAG
-          - **Wget2 Version**: $WGET2_TAG
+          - **Axel Version**: $axel_display
+          - **Wget2 Version**: $wget2_display
           - **Build Environment**: Alpine Linux (musl libc, fully static)
 
-          <!-- version-tags -->
+          <!-- version-tags
           axel_tag=$AXEL_TAG
           wget2_tag=$WGET2_TAG
+          -->
           EOF
           )
           gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
