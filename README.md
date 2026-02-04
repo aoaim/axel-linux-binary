@@ -12,6 +12,8 @@
 
 此外，工作流每周会自动检查一次上游 `axel`/`wget2` 是否有新 tag；只要其中一个有更新，就会自动触发构建并发布新的 Release。
 
+🤖 本仓库代码全部由 **Claude Opus 4** 生成，没有丝毫的人工成分，放心食用。
+
 ## 使用方法
 
 两种方式都支持：
@@ -51,31 +53,18 @@ $ ldd axel-amd64
 not a dynamic executable
 ```
 
-## wget2 静态版本限制
-
-> [!WARNING]
-> 由于 Alpine Linux 没有提供 `gnutls-static` 静态库包，静态编译的 wget2 **不支持 HTTPS**。
-
-| 功能 | 支持情况 |
-|------|----------|
-| HTTP | ✅ |
-| HTTP/2 多线程 | ✅ |
-| HTTPS | ❌ 不支持 |
-| FTP | ❌ wget2 设计上不支持 |
-| IDN2 国际化域名 | ✅ |
-| Brotli/LZMA/BZ2/Zlib 压缩 | ✅ |
-| PSL 公共后缀列表 | ✅ |
-| PCRE2 正则表达式 | ✅ |
-
-如果需要 HTTPS 或 FTP 支持，请使用传统的 GNU Wget 1.x 或 curl。
-
 ## 构建环境
 
 构建环境基于 `alpine:latest` 镜像，使用 musl libc 进行静态链接。主要依赖包括：
 - `build-base`（gcc, make 等）
 - `autoconf`, `autoconf-archive`, `automake`, `libtool`
-- `openssl-dev`, `openssl-libs-static`
-- `gnutls-dev`, `brotli-dev`, `zstd-dev` 等（用于 wget2）
+- `openssl-dev`, `openssl-libs-static`（用于 axel）
+- `brotli-dev`, `zstd-dev`, `nghttp2-dev` 等（用于 wget2）
+
+**wget2 的 HTTPS 支持** 通过从源码编译以下库实现：
+- libtasn1 4.19.0
+- Nettle 3.9.1
+- GnuTLS 3.8.3
 
 ## 源码来源
 

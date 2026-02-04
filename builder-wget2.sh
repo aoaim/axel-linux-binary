@@ -12,9 +12,10 @@ fi
 
 echo "Building Wget2 ref: $WGET2_REF for architecture: $ARCH"
 
+# Static library install prefix
+STATIC_PREFIX=/usr/local
+
 # Install dependencies (Alpine uses apk)
-# Note: wget2 uses GnuTLS for SSL/TLS, but Alpine has no gnutls-static package
-# So this build will NOT have HTTPS support. For HTTPS, use traditional wget 1.x
 apk update
 apk add --no-cache \
     autoconf \
@@ -32,6 +33,7 @@ apk add --no-cache \
     gettext-static \
     git \
     gmp-dev \
+    gmp-static \
     libidn2-dev \
     libidn2-static \
     libpsl-dev \
@@ -44,8 +46,7 @@ apk add --no-cache \
     m4 \
     nghttp2-dev \
     nghttp2-static \
-    openssl-dev \
-    openssl-libs-static \
+    p11-kit-dev \
     pcre2-dev \
     pcre2-static \
     pkgconf \
@@ -64,6 +65,84 @@ apk add --no-cache \
 if [ ! -x /usr/bin/python ]; then
     ln -s /usr/bin/python3 /usr/bin/python
 fi
+
+#############################################
+# Build GnuTLS and dependencies from source
+#############################################
+echo "=== Building GnuTLS dependencies from source ==="
+
+# Version definitions
+LIBTASN1_VERSION="4.19.0"
+NETTLE_VERSION="3.9.1"
+GNUTLS_VERSION="3.8.3"
+
+# Build libtasn1 (static)
+echo "=== Building libtasn1 $LIBTASN1_VERSION ==="
+cd /tmp
+curl -LO "https://ftp.gnu.org/gnu/libtasn1/libtasn1-${LIBTASN1_VERSION}.tar.gz"
+tar xzf libtasn1-${LIBTASN1_VERSION}.tar.gz
+cd libtasn1-${LIBTASN1_VERSION}
+./configure \
+    --prefix=$STATIC_PREFIX \
+    --enable-static \
+    --disable-shared \
+    --disable-doc
+make -j$(nproc)
+make install
+
+# Build Nettle (static) - requires GMP
+echo "=== Building Nettle $NETTLE_VERSION ==="
+cd /tmp
+curl -LO "https://ftp.gnu.org/gnu/nettle/nettle-${NETTLE_VERSION}.tar.gz"
+tar xzf nettle-${NETTLE_VERSION}.tar.gz
+cd nettle-${NETTLE_VERSION}
+./configure \
+    --prefix=$STATIC_PREFIX \
+    --enable-static \
+    --disable-shared \
+    --disable-openssl \
+    --disable-documentation
+make -j$(nproc)
+make install
+
+# Build GnuTLS (static) - requires Nettle, libtasn1
+echo "=== Building GnuTLS $GNUTLS_VERSION ==="
+cd /tmp
+curl -LO "https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-${GNUTLS_VERSION}.tar.xz"
+xz -d gnutls-${GNUTLS_VERSION}.tar.xz
+tar xf gnutls-${GNUTLS_VERSION}.tar
+cd gnutls-${GNUTLS_VERSION}
+./configure \
+    --prefix=$STATIC_PREFIX \
+    --enable-static \
+    --disable-shared \
+    --disable-doc \
+    --disable-tools \
+    --disable-tests \
+    --disable-nls \
+    --disable-cxx \
+    --disable-guile \
+    --disable-libdane \
+    --without-p11-kit \
+    --with-included-unistring \
+    CFLAGS="-I$STATIC_PREFIX/include" \
+    LDFLAGS="-L$STATIC_PREFIX/lib" \
+    PKG_CONFIG_PATH="$STATIC_PREFIX/lib/pkgconfig" \
+    NETTLE_CFLAGS="-I$STATIC_PREFIX/include" \
+    NETTLE_LIBS="-L$STATIC_PREFIX/lib -lnettle" \
+    HOGWEED_CFLAGS="-I$STATIC_PREFIX/include" \
+    HOGWEED_LIBS="-L$STATIC_PREFIX/lib -lhogweed -lnettle -lgmp" \
+    LIBTASN1_CFLAGS="-I$STATIC_PREFIX/include" \
+    LIBTASN1_LIBS="-L$STATIC_PREFIX/lib -ltasn1"
+make -j$(nproc)
+make install
+
+# Update PKG_CONFIG_PATH for wget2 to find our static libraries
+export PKG_CONFIG_PATH="$STATIC_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
+
+#############################################
+# Build wget2
+#############################################
 
 # Get latest tag if not specified
 if [ -z "$WGET2_REF" ]; then
@@ -95,24 +174,20 @@ echo "=== Starting static build process ==="
 # Check available SSL options
 echo "=== Checking configure options ==="
 ./configure --help | grep -i ssl || true
-./configure --help | grep -i openssl || true
 ./configure --help | grep -i gnutls || true
 
-# Configure for static build
-# NOTE: SSL/TLS support is disabled because:
-# - wget2 uses GnuTLS for HTTPS (not OpenSSL)
-# - Alpine Linux has no gnutls-static package
-# - --with-openssl only provides hash functions, not HTTPS
-# DO NOT use -static in CFLAGS during configure (breaks compiler test)
+# Configure for static build with GnuTLS
 ./configure \
     --disable-shared \
     --enable-static \
-    --with-openssl=yes \
-    --without-gnutls \
+    --with-gnutls=yes \
+    --without-openssl \
     --without-gpgme \
     --without-libmicrohttpd \
     --without-plugin-support \
-    LDFLAGS="-static"
+    CFLAGS="-I$STATIC_PREFIX/include" \
+    LDFLAGS="-static -L$STATIC_PREFIX/lib" \
+    PKG_CONFIG_PATH="$STATIC_PREFIX/lib/pkgconfig"
 
 # Fix musl libc compatibility issue
 # In musl, pthread_t is 'struct __pthread *', but wget_thread_id_t is 'unsigned long'
@@ -124,18 +199,19 @@ if [ -f libwget/thread.c ]; then
 fi
 
 # Build with static linking
-# Need to add all dependencies explicitly for static linking:
-# - Compression: zlib, lzma, brotli (dec+common), bzip2
-# - IDN: libidn2, libunistring
-# - HTTP/2: nghttp2
-# - PSL: libpsl
-make -j$(nproc) LDFLAGS="-static -all-static" \
-    LIBS="-lidn2 -lunistring -lpsl -lnghttp2 -lbrotlidec -lbrotlicommon -llzma -lz -lbz2 -lpcre2-8"
+# Need to add all dependencies explicitly for static linking
+make -j$(nproc) LDFLAGS="-static -all-static -L$STATIC_PREFIX/lib" \
+    LIBS="-lgnutls -lhogweed -lnettle -lgmp -ltasn1 -lidn2 -lunistring -lpsl -lnghttp2 -lbrotlidec -lbrotlicommon -llzma -lz -lbz2 -lpcre2-8"
 
 # Verify static linking
 echo "=== Verifying static linking ==="
 file src/wget2
 ldd src/wget2 2>&1 || echo "Binary is statically linked (expected)"
+
+# Verify HTTPS support
+echo "=== Verifying HTTPS support ==="
+./src/wget2 --version || true
+./src/wget2 --version 2>&1 | grep -i gnutls && echo "GnuTLS support: ENABLED" || echo "GnuTLS support: DISABLED"
 
 # Prepare output
 mkdir -p /output
