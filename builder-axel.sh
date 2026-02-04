@@ -75,7 +75,7 @@ fi
 echo "=== Starting static build process ==="
 autoreconf -fiv
 ./configure \
-    CFLAGS="-static" \
+    CFLAGS="-static -Wno-error=unterminated-string-initialization" \
     LDFLAGS="-static" \
     LIBS="-lpthread"
 make -j$(nproc)
