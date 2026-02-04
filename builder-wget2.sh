@@ -185,9 +185,9 @@ fi
 
 # Build with static linking
 # Need to add all dependencies explicitly for static linking
-# Note: p11-kit disabled via --without-p11-kit in GnuTLS configure
+# Note: GnuTLS links zstd and brotli for compression support
 make -j$(nproc) LDFLAGS="-static -all-static" \
-    LIBS="-lgnutls -lhogweed -lnettle -lgmp -ltasn1 -lidn2 -lunistring -lpsl -lnghttp2 -lbrotlidec -lbrotlicommon -llzma -lz -lbz2 -lpcre2-8 -lpthread"
+    LIBS="-lgnutls -lhogweed -lnettle -lgmp -ltasn1 -lidn2 -lunistring -lpsl -lnghttp2 -lbrotlidec -lbrotlienc -lbrotlicommon -lzstd -llzma -lz -lbz2 -lpcre2-8 -lpthread"
 
 # Verify static linking
 echo "=== Verifying static linking ==="
