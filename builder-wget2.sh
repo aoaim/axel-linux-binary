@@ -63,8 +63,7 @@ apk add --no-cache \
     zlib-static \
     zstd-dev \
     zstd-static \
-    libffi-dev \
-    libffi-static
+    libffi-dev
 
 # Ensure python symlink exists
 if [ ! -x /usr/bin/python ]; then
